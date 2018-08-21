@@ -1,0 +1,113 @@
+<html>
+<head>
+<title>Crosswing Robot Plotter</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<script type="text/javascript" src="nav2remote.js"></script>
+
+<script type="text/javascript">
+var prevPos = null;
+
+function clearpage() {
+    var canvas = document.getElementById('mainview');
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawGrid();
+}
+
+function drawGrid() {
+    var wx,wy;
+    var canvas = document.getElementById('mainview');
+    if( canvas.offsetWidth > canvas.offsetHeight) {
+        wx = 10;
+        wy = 10 * canvas.offsetHeight/canvas.offsetWidth;
+    } else {
+        wx = 10 * canvas.offsetWidth/canvas.offsetHeight;
+        wy = 10;
+    }
+    var sx = canvas.width / wx;
+    var sy = canvas.height / wy;
+    var ctx = canvas.getContext('2d');
+    for( var i=0; i < wx || i < wy; ++i) {
+        ctx.strokeStyle = (i==0?'#bbb':'#ddd');
+        ctx.beginPath();
+        ctx.moveTo(canvas.width/2-i*sx,0);
+        ctx.lineTo(canvas.width/2-i*sx,canvas.height);
+        ctx.moveTo(canvas.width/2+i*sx,0);
+        ctx.lineTo(canvas.width/2+i*sx,canvas.height);
+        ctx.moveTo(0,canvas.height/2-i*sy);
+        ctx.lineTo(canvas.width,canvas.height/2-i*sy);
+        ctx.moveTo(0,canvas.height/2+i*sy);
+        ctx.lineTo(canvas.width,canvas.height/2+i*sy);
+        ctx.stroke();
+    }
+}
+
+function tick() {
+    nav2.update();
+
+    if( nav2.gotPos) {
+        var canvas = document.getElementById('mainview');
+
+        if( prevPos == null) prevPos = [nav2.pos[0],nav2.pos[1]];
+
+        var wx,wy;
+        if( canvas.offsetWidth > canvas.offsetHeight) {
+            wx = 10;
+            wy = 10 * canvas.offsetHeight/canvas.offsetWidth;
+        } else {
+            wx = 10 * canvas.offsetWidth/canvas.offsetHeight;
+            wy = 10;
+        }
+
+        if( prevPos[0] != nav2.pos[0] || prevPos[1] != nav2.pos[1]) {
+            var ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#000';
+            var sx = canvas.width / wx;
+            var sy = canvas.height / wy;
+
+            ctx.beginPath();
+            ctx.moveTo(prevPos[0]*sx+canvas.width/2,-prevPos[1]*sy+canvas.height/2);
+            ctx.lineTo(nav2.pos[0]*sx+canvas.width/2,-nav2.pos[1]*sy+canvas.height/2);
+            ctx.stroke();
+            prevPos[0] = nav2.pos[0];
+            prevPos[1] = nav2.pos[1];
+
+            ctx = document.getElementById('plan').getContext('2d');;
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            for( var i=0; i < nav2.plan.length; ++i) {
+                var p = nav2.plan[i];
+                ctx.beginPath();
+                ctx.save();
+                ctx.scale(sx,sy);
+                ctx.arc(p.x+canvas.width/(2*sx),-p.y+canvas.height/(2*sy),
+                    Math.max(1/sx,Math.abs(p.r)), 0, 2*Math.PI, false);
+                ctx.restore();
+                ctx.strokeStyle = (p.r > 0 ? '#0f0' : '#f00');
+                ctx.stroke();
+            }
+        }
+
+        var turtle = document.getElementById('turtle');
+        turtle.style.left = (nav2.pos[0]*canvas.offsetWidth/wx-27+canvas.offsetWidth/2)+'px';
+        turtle.style.top = (-nav2.pos[1]*canvas.offsetHeight/wy+canvas.offsetHeight/2-27)+'px';
+        turtle.style.webkitTransform =
+            'rotate('+(90-nav2.orientation*180/Math.PI)+'deg)';
+        turtle.style.visibility = 'visible';
+    }
+
+    window.setTimeout('tick()',100);
+}
+
+</script>
+</head>
+
+<body onload="clearpage();tick();" onresize="clearpage()" style='margin:0px;overflow:hidden;height:100%'>
+    <canvas id="mainview" width="500" height="500" style="border:none;width:100%;height:100%"></canvas>
+    <canvas id="plan" width="500" height="500" style="border:none;width:100%;height:100%;position:absolute;left:0;top:0"></canvas>
+    <img id="turtle" src="turtle.png" style="position:absolute;left:-27px;top:-27px;visibility:hidden">
+    <button style="position:absolute;top:0px;left:0px;" onclick="nav2.stop();nav2.setPosition(0,0);window.setTimeout('clearpage()',100);window.setTimeout('nav2.setPosition(0,0);clearpage()',2000)">Reset</button>
+</body>
+
+</html>
